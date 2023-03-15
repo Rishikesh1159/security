@@ -75,7 +75,7 @@ public class InternalAuthenticationBackend implements AuthenticationBackend, Aut
             if(securityRoles != null) {
                 user.addSecurityRoles(securityRoles);
             }
-
+            
             user.addAttributes(attributeMap);
             return true;
         }
@@ -83,38 +83,20 @@ public class InternalAuthenticationBackend implements AuthenticationBackend, Aut
         return false;
     }
 
-    /**
-     * A helper function used to verify that both invalid and valid usernames have a hashing check during testing.
-     * @param hash A string hash of the stored user's password.
-     * @param array A char array of the provided password
-     * @return Whether the hash matches the provided password
-     */
-    public boolean passwordMatchesHash(String hash, char[] array) {
-        return OpenBSDBCrypt.checkPassword(hash, array);
-    }
-
     @Override
     public User authenticate(final AuthCredentials credentials) {
-
-        boolean userExists;
 
         if (internalUsersModel == null) {
             throw new OpenSearchSecurityException("Internal authentication backend not configured. May be OpenSearch is not initialized.");
         }
 
-        final byte[] password;
-        String hash;
         if(!internalUsersModel.exists(credentials.getUsername())) {
-            userExists = false;
-            password = credentials.getPassword();
-            hash = "$2y$12$NmKhjNssNgSIj8iXT7SYxeXvMA1E95a9tCt4cySY9FrQ4fB18xEc2"; // Ensure the same cryptographic complexity for users not found and invalid password
-        } else {
-            userExists = true;
-            password = credentials.getPassword();
-            hash = internalUsersModel.getHash(credentials.getUsername());
+            throw new OpenSearchSecurityException(credentials.getUsername() + " not found");
         }
 
-        if (password == null || password.length == 0) {
+        final byte[] password = credentials.getPassword();
+
+        if(password == null || password.length == 0) {
             throw new OpenSearchSecurityException("empty passwords not supported");
         }
 
@@ -126,7 +108,7 @@ public class InternalAuthenticationBackend implements AuthenticationBackend, Aut
         Arrays.fill(password, (byte)0);
 
         try {
-            if (passwordMatchesHash(hash, array) && userExists) {
+            if (OpenBSDBCrypt.checkPassword(internalUsersModel.getHash(credentials.getUsername()), array)) {
                 final List<String> roles = internalUsersModel.getBackenRoles(credentials.getUsername());
                 final Map<String, String> customAttributes = internalUsersModel.getAttributes(credentials.getUsername());
                 if(customAttributes != null) {
@@ -134,18 +116,16 @@ public class InternalAuthenticationBackend implements AuthenticationBackend, Aut
                         credentials.addAttribute("attr.internal."+attributeName.getKey(), attributeName.getValue());
                     }
                 }
-
+                
                 final User user = new User(credentials.getUsername(), roles, credentials);
-
+                
                 final List<String> securityRoles = internalUsersModel.getSecurityRoles(credentials.getUsername());
                 if(securityRoles != null) {
                     user.addSecurityRoles(securityRoles);
                 }
+                
                 return user;
             } else {
-                if (!userExists) {
-                    throw new OpenSearchSecurityException(credentials.getUsername() + " not found");
-                }
                 throw new OpenSearchSecurityException("password does not match");
             }
         } finally {
