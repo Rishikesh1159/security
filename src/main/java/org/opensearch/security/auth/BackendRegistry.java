@@ -338,12 +338,8 @@ public class BackendRegistry {
             }
 
             if(authCredenetials == null && anonymousAuthEnabled) {
-                final String tenant = Utils.coalesce(request.header("securitytenant"), request.header("security_tenant"));
-                User anonymousUser = new User(User.ANONYMOUS.getName(), new HashSet<String>(User.ANONYMOUS.getRoles()), null);
-                anonymousUser.setRequestedTenant(tenant);
-
-                threadContext.putTransient(ConfigConstants.OPENDISTRO_SECURITY_USER, anonymousUser);
-                auditLog.logSucceededLogin(anonymousUser.getName(), false, null, request);
+            	threadContext.putTransient(ConfigConstants.OPENDISTRO_SECURITY_USER, User.ANONYMOUS);
+            	auditLog.logSucceededLogin(User.ANONYMOUS.getName(), false, null, request);
                 if (isDebugEnabled) {
                     log.debug("Anonymous User is authenticated");
                 }
