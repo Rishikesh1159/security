@@ -50,10 +50,10 @@ plugins {
     id 'idea'
     id 'jacoco'
     id 'maven-publish'
-    id 'com.diffplug.spotless' version '6.16.0'
+    id 'com.diffplug.spotless' version '5.11.0'
     id 'checkstyle'
-    id 'com.netflix.nebula.ospackage'  version "11.0.0"
-    id "org.gradle.test-retry" version "1.5.2"
+    id 'nebula.ospackage'  version "8.3.0"
+    id "org.gradle.test-retry" version "1.3.1"
     id "com.github.spotbugs" version "5.0.13"
 }
 
@@ -165,9 +165,7 @@ opensearchplugin {
 loggerUsageCheck.enabled = false
 
 // No need to validate pom, as we do not upload to maven/sonatype
-tasks.matching {it.path in [":validateMavenPom", ":validateNebulaPom", ":validatePluginZipPom"]}.all { task ->
-    task.dependsOn ':generatePomFileForNebulaPublication', ':generatePomFileForPluginZipPublication', ':generatePomFileForMavenPublication'
-}
+validateNebulaPom.enabled = false
 
 publishing {
     publications {
@@ -443,12 +441,12 @@ task bundleSecurityAdminStandaloneTarGz(dependsOn: jar, type: Tar) {
 buildRpm {
     arch = 'NOARCH'
     addParentDirs = false
-    archiveFileName = "${packageName}-${version}.rpm"
+    archiveName "${packageName}-${version}.rpm"
 }
 
 buildDeb {
     arch = 'all'
-    archiveFileName = "${packageName}-${version}.deb"
+    archiveName "${packageName}-${version}.deb"
 }
 
 publishing {
@@ -516,7 +514,8 @@ afterEvaluate {
         task renameRpm(type: Copy) {
             from("$buildDir/distributions")
             into("$buildDir/distributions")
-            rename "$archiveFileName", "${packageName}-${version}.rpm"
+            include archiveName
+            rename archiveName, "${packageName}-${version}.rpm"
             doLast { delete file("$buildDir/distributions/$archiveName") }
         }
     }
@@ -528,7 +527,8 @@ afterEvaluate {
         task renameDeb(type: Copy) {
             from("$buildDir/distributions")
             into("$buildDir/distributions")
-            rename "$archiveFileName", "${packageName}-${version}.deb"
+            include archiveName
+            rename archiveName, "${packageName}-${version}.deb"
             doLast { delete file("$buildDir/distributions/$archiveName") }
         }
     }
